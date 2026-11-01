@@ -1,0 +1,12 @@
+{
+  "title": "TRACE: a pre-deployment transportability audit for multi-omic cancer subtyping (simulation code)",
+  "upload_type": "software",
+  "license": "MIT",
+  "access_right": "open",
+  "description": "Simulation code reproducing all analyses of the TRACE study. All data are simulated.",
+  "creators": [
+    {"name": "Author, First A."},
+    {"name": "Author, Second B."},
+    {"name": "Author, Third C."}
+  ]
+}

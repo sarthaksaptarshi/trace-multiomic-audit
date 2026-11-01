@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+title: "TRACE: a pre-deployment transportability audit for multi-omic cancer subtyping (simulation code)"
+message: "If you use this software, please cite it using these metadata."
+type: software
+authors:
+  - given-names: First A.
+    family-names: Author
+  - given-names: Second B.
+    family-names: Author
+  - given-names: Third C.
+    family-names: Author
+version: "1.0.0"
+date-released: "YYYY-MM-DD"
+license: MIT
+# doi: TO BE ADDED AFTER ZENODO DEPOSIT (do not fill until minted)
+repository-code: "https://github.com/ORG/REPO  # TO BE ADDED"
+abstract: >
+  Simulation code reproducing all figures, tables and analyses of the TRACE
+  study (OMICS-SIM cohort, adversarial robustness/circularity test, label-free
+  calibration surrogate validation, baseline comparison, and provenance
+  sensitivity). All data are simulated; no human-subject data are used.
