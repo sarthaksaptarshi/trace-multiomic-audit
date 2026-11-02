@@ -13,9 +13,9 @@ authors:
     affiliation: "Meghnad Saha Institute of Technology, Kolkata 700150, India"
     website: "https://sites.google.com/msit.edu.in/drmanashchanda/home"
 version: "1.0.0"
-date-released: "YYYY-MM-DD"   # set on release
+date-released: "2026-11-02"
 license: MIT
-# doi: TO BE ADDED AFTER ZENODO DEPOSIT (do not fill until minted)
+doi: "10.5281/zenodo.23873597"
 repository-code: "https://github.com/sarthaksaptarshi/trace-multiomic-audit"
 abstract: >
   Code reproducing all figures, tables and analyses of the TRACE study: an

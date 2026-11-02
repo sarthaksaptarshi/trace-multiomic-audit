@@ -149,5 +149,4 @@ of Technology, Kolkata 700150, India).
 
 **Repository:** https://github.com/sarthaksaptarshi/trace-multiomic-audit
 
-**DOI:** to be added after Zenodo deposit — mint it at deposit time against the exact
-version submitted (do not pre-generate it).
+**DOI:** [10.5281/zenodo.23873597](https://doi.org/10.5281/zenodo.23873597) (Zenodo, v1.0.0)
