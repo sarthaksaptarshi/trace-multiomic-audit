@@ -180,7 +180,8 @@ def main():
                              ("stability",1),("provenance",1),("leakage",-1),("direct",1)]:
                 xo=R[col]*sign
                 if xo.std()<1e-12: print(f"   {col:12s} rho= n/a (constant)"); continue
-                print(f"   {col:12s} rho={spearmanr(xo,R['external_AUROC']).correlation:+.2f}")
+                ok=R["external_AUROC"].notna()   # one-class sites have no AUROC
+                print(f"   {col:12s} rho={spearmanr(xo[ok],R['external_AUROC'][ok]).correlation:+.2f}")
         print("\nNOTE: with few sites this is LOW-POWERED; report CIs and treat as exploratory.")
     else:
         print("Too few evaluable sites for correlation; per-site table only.")

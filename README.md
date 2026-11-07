@@ -27,11 +27,10 @@ combined audit (0.94) does not improve on predictive confidence alone (0.93; pai
 Δ = +0.014, 95% CI [−0.001, +0.034]; it does edge out the weaker 4-signal uncertainty
 combination, Δ = +0.033 [+0.011, +0.065]), and the apparent advantage in a constructed
 confident-error regime is a **scoring-direction artifact** — a direction-aware
-confidence detector matches it (paired Δ = +0.001) and a representative audit erases
-it. In the **real-data validation**, a class-balanced classifier transports across a
-genuine platform shift (TCGA↔METABRIC, AUROC 0.76–0.86); across 21 pooled sites the
-raw detector–performance correlations exceed zero but are largely a between-cohort
-effect, and after adjusting for the cohort gap **none is distinguishable from zero**.
+confidence detector matches it (paired Δ = +0.001 [−0.006, +0.009]). In the **real-data validation**, a class-balanced classifier transports across a
+genuine platform shift (TCGA↔METABRIC, AUROC 0.76–0.86), but across 21 pooled sites
+**no detector's correlation with transport is distinguishable from zero**, raw or
+adjusted for the cohort gap.
 A third cohort (TCGA glioma DNA methylation across plates, a second omic type with
 genuine cross-batch failures) shows the same direction: uncertainty weakly predicts
 transport, provenance does not. **The consistent finding is negative/cautionary:
@@ -54,6 +53,7 @@ src/
   twocohort_validation.py Two-cohort TCGA + METABRIC validation (cross-cohort transfer + pooled sites)
   methyl_batch_validation.py  DNA-methylation audit across sequencing-plate batches (glioma cohort)
   realdata_stats.py       Bootstrap CIs, cohort-adjusted partial correlations, head-to-head vs confidence
+  make_cohort_figs.py     Paper Figs. 3 and 4 (two-cohort, glioma) from the CSVs + realdata_stats.json
   make_genemap.py         Helper: map TCGA Ensembl IDs -> gene symbols (cross-cohort matching)
   tcga_validation.py      Legacy GDC-API scaffold (optional; Xena route preferred)
   results_io.py           Analysis scripts save results/*.json; figure scripts read them
@@ -154,12 +154,19 @@ python src/realdata_stats.py --single real_data/results_TCGA_BRCA_fixed.csv
 python src/realdata_stats.py --twocohort real_data/results_twocohort.csv
 python src/realdata_stats.py --glioma real_data/glioma_pilot4.csv
 ```
+Run all three together to also write `results/realdata_stats.json`, then build the paper's
+Fig. 3 (two cohorts) and Fig. 4 (glioma) from it:
+```bash
+python src/realdata_stats.py --single real_data/results_TCGA_BRCA_fixed.csv \
+  --twocohort real_data/results_twocohort.csv --glioma real_data/glioma_pilot4.csv
+python src/make_cohort_figs.py     # figures/fig_twocohort.*, figures/fig_glioma.*
+```
 
-The `real_data/` CSVs are the outputs these commands produced for the paper.
-**They predate two fixes and must be regenerated:** (1) TCGA samples are now restricted
-to primary tumours, one per patient — the earlier two-cohort run included normal-tissue
-samples carrying the patient's carcinoma label; (2) the glioma AUROC is now computed over
-the classes present on each plate (it was blank for most plates).
+The `real_data/` CSVs are the outputs of these commands after two fixes: (1) TCGA samples
+are restricted to primary tumours, one per patient (an earlier two-cohort run included
+normal-tissue samples carrying the patient's carcinoma label, which inflated the raw
+detector correlations); (2) the glioma AUROC is computed over the classes present on each
+plate.
 
 ---
 
