@@ -21,11 +21,14 @@ def ci(fn,*xs):
     for _ in range(B):
         i=RNG.integers(0,n,n)
         try:s.append(fn(*[x[i] for x in xs]))
-        except:pass
-    return np.mean(s),np.percentile(s,2.5),np.percentile(s,97.5)
+        except Exception:pass
+    return fn(*xs),np.nanpercentile(s,2.5),np.nanpercentile(s,97.5)   # point estimate + 95% CI
 print("provenance noise -> trust-score failure-AUROC and r(T,ext) [95% CI]")
 print("%8s %22s %22s"%("sd(q)","failure-AUROC","Pearson r(T,ext)"))
+OUT=[]
 for qn in [0.0,0.1,0.2,0.3,0.4,0.5]:
     T,ext=pool(400,qn,RNG); fail=(ext<BAR).astype(int)
     au=ci(lambda y,s:roc_auc_score(y,-s),fail,T); r=ci(lambda a,b:pearsonr(a,b)[0],T,ext)
     print("%8.2f  %.2f [%.2f,%.2f]        %.2f [%.2f,%.2f]"%(qn,*au,*r))
+    OUT.append(dict(qnoise=qn,auroc=au,r=r))
+import results_io; results_io.save("prov_sweep",OUT)

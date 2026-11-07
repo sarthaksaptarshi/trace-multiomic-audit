@@ -1,0 +1,11 @@
+{
+  "title": "TRACE: a build-quality audit for multi-omic cancer subtyping, and the limits of composite trust scores for transportability",
+  "upload_type": "software",
+  "license": "MIT",
+  "access_right": "open",
+  "description": "Code reproducing all analyses of the TRACE study: an auditable simulation plus real-data validation on open-access TCGA, METABRIC, and TCGA glioma DNA methylation cohorts. A methods study, not a clinical validation.",
+  "creators": [
+    {"name": "Bandopadhyay, Sarthak Saptarshi", "orcid": "0009-0002-4140-8144", "affiliation": "Meghnad Saha Institute of Technology, Kolkata, India"},
+    {"name": "Chanda, Manash", "affiliation": "Meghnad Saha Institute of Technology, Kolkata, India"}
+  ]
+}

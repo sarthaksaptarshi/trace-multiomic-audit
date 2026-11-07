@@ -2,8 +2,8 @@
 All data are SIMULATED. Failure = external macro-F1 < prespecified bar (0.80).
 Failure-detection AUROC uses each indicator in its intended 'higher = more
 trustworthy' direction (score for the failure class = -indicator)."""
-import numpy as np
-from scipy.stats import pearsonr, spearmanr, norm
+import zlib, numpy as np
+from scipy.stats import pearsonr, norm
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 BAR, B = 0.80, 2000
@@ -35,12 +35,13 @@ def boot(func,*arr,rng=None):
     for _ in range(B):
         i=rng.integers(0,n,n)
         try:out.append(func(*[a[i] for a in arr]))
-        except:pass
-    return np.mean(out),np.percentile(out,2.5),np.percentile(out,97.5)
+        except Exception:pass
+    return func(*arr),np.nanpercentile(out,2.5),np.nanpercentile(out,97.5)   # point estimate + 95% CI
 def f(t):return f"{t[0]:.2f} [{t[1]:.2f},{t[2]:.2f}]"
 
 def run(name,rho,nonlinear,pnoise,omit_coef,lin_coef):
-    rng=np.random.default_rng(abs(hash(name))%2**31)
+    # deterministic per-scenario seed (Python's hash() of a str is randomised per process)
+    rng=np.random.default_rng(zlib.crc32(name.encode("utf-8")))
     d=make_pool(400,rho,nonlinear,pnoise,omit_coef,lin_coef,rng)
     e=make_pool(400,rho,nonlinear,pnoise,omit_coef,lin_coef,rng)
     lr=LogisticRegression(max_iter=1000).fit(d["P"],d["fail"])
@@ -69,8 +70,9 @@ scen=[
 ]
 print(f"Failure bar: external macro-F1 < {BAR} (prespecified). unit=configuration, "
       f"design=400/eval=400, bootstrap B={B}. Failure-detection AUROC in intended direction.\n")
+ALL=[]
 for s in scen:
-    r=run(*s); print("="*76); print(r["name"]+f"   | failure prevalence {r['prev']:.2f}")
+    r=run(*s); ALL.append(r); print("="*76); print(r["name"]+f"   | failure prevalence {r['prev']:.2f}")
     print(f"  Trust T (equal)     failure-AUROC {f(r['Teq'])}   Pearson r(T,ext) {f(r['rT'])}")
     print(f"  Trust T (learned)   failure-AUROC {f(r['Tlearn'])}")
     print(f"  best single probe ({r['best'][0]})  failure-AUROC {r['best'][1]:.2f} [{r['best'][2]:.2f},{r['best'][3]:.2f}]")
@@ -78,3 +80,4 @@ for s in scen:
     print(f"  internal accuracy (naive) failure-AUROC {f(r['intacc_naive'])}   Pearson r(intAcc,ext) {f(r['r_intacc'])}")
     print("  single-probe AUROCs: "+", ".join(f"{k} {v:.2f}" for k,v in r['singles'].items()))
     if 'omit_frac' in r: print(f"  >> {r['omit_frac']*100:.0f}% of failures mainly driven by the OMITTED hazard (invisible to TRACE)")
+import results_io; results_io.save("stress_test",ALL)

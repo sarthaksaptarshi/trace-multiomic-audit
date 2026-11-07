@@ -7,19 +7,20 @@ authors:
     family-names: Bandopadhyay
     orcid: "https://orcid.org/0009-0002-4140-8144"
     email: sarthaksb@ieee.org
-    affiliation: "Independent Researcher, Argyle, Texas, USA"
+    affiliation: "Meghnad Saha Institute of Technology, Kolkata 700150, India"
   - given-names: Manash
     family-names: Chanda
     affiliation: "Meghnad Saha Institute of Technology, Kolkata 700150, India"
     website: "https://sites.google.com/msit.edu.in/drmanashchanda/home"
-version: "1.0.0"
-date-released: "2026-11-02"
+version: "1.1.0"
+date-released: "2026-11-07"
 license: MIT
-doi: "10.5281/zenodo.23873597"
+doi: "10.5281/zenodo.23873596"
 repository-code: "https://github.com/sarthaksaptarshi/trace-multiomic-audit"
 abstract: >
   Code reproducing all figures, tables and analyses of the TRACE study: an
   auditable simulation (OMICS-SIM cohort, non-circular patient-level validation,
-  circularity/adversarial tests, label-free calibration surrogate, baselines and
-  provenance sensitivity) and a two-cohort real-data validation on open-access
-  TCGA and METABRIC breast-cancer data. A methods study, not a clinical validation.
+  circularity and adversarial tests, label-free calibration surrogate, baselines
+  and provenance sensitivity) and real-data validation on open-access cohorts:
+  TCGA and METABRIC breast-cancer gene expression, and TCGA glioma DNA methylation
+  across sequencing plates. A methods study, not a clinical validation.

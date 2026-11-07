@@ -2,18 +2,10 @@ import numpy as np, matplotlib as mpl; mpl.use("Agg"); import matplotlib.pyplot 
 mpl.rcParams.update({"font.family":"serif","font.serif":["STIXGeneral","DejaVu Serif"],
  "mathtext.fontset":"stix","font.size":8,"axes.labelsize":8,"xtick.labelsize":7,"ytick.labelsize":7.2,
  "legend.fontsize":6.6,"axes.linewidth":0.8,"legend.frameon":False,"savefig.bbox":"tight","savefig.pad_inches":0.02})
-rows=[  # name, auroc, lo, hi, kind
- ("direct estimate (target-audit labels)",0.93,0.88,0.97,"lab"),
- ("predictive confidence",0.93,0.87,0.97,"free"),
- ("predictive entropy",0.91,0.85,0.96,"free"),
- ("ensemble disagreement",0.86,0.77,0.93,"free"),
- ("calibration drift (audit labels)",0.82,0.72,0.90,"lab"),
- ("stability (source)",0.81,0.71,0.88,"free"),
- ("TRACE (label-dependent)",0.68,0.56,0.79,"trace"),
- ("TRACE (label-free)",0.63,0.51,0.74,"trace"),
- ("domain classifier",0.58,0.45,0.69,"free"),
- ("leakage (source)",0.53,0.41,0.63,"free"),
- ("provenance (source)",0.42,0.30,0.53,"free")]
+import os, results_io; os.makedirs("figures",exist_ok=True)
+D=results_io.load("comprehensive")          # written by comprehensive.py
+rows=[(nm,*v["auroc"],"trace" if nm.startswith("TRACE") else ("lab" if v["access"]=="LABELS" else "free"))
+      for nm,v in D.items()]                # name, auroc, lo, hi, kind
 rows=sorted(rows,key=lambda r:r[1])
 y=np.arange(len(rows)); col={"lab":"#3B6FB0","free":"#4C9A6E","trace":"#C0443E"}
 fig,ax=plt.subplots(figsize=(6.6,3.4))

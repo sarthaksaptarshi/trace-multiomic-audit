@@ -90,12 +90,17 @@ def main():
     print("[2/4] loading expression (can take a minute) ...")
     X=load_matrix(a.expr)
     if a.cnv:
-        C=load_matrix(a.cnv); common=X.columns.intersection(C.columns)  # if gene overlap desired
-        C=C.add_prefix("cnv_"); X=X.join(C,how="inner")
+        C=load_matrix(a.cnv).add_prefix("cnv_"); X=X.join(C,how="inner")
 
     print("[3/4] aligning & filtering ...")
     keep=[s for s in X.index if s in y.index and not is_miss(y.get(s))
           and (sample_code(s) in (None,"01","03"))]
+    seen=set(); dedup=[]                      # one sample per patient (TCGA-XX-XXXX)
+    for s in sorted(keep):
+        pat="-".join(s.split("-")[:3]) if is_barcode(s) else s
+        if pat not in seen: seen.add(pat); dedup.append(s)
+    if len(dedup)!=len(keep): print(f"      dropped {len(keep)-len(dedup)} duplicate-patient samples")
+    keep=dedup
     X=X.loc[keep].dropna(axis=1,how="any"); y=y.loc[X.index]; site=site.loc[X.index]
     nz=X.std(axis=0)>0; X=X.loc[:,nz]  # drop constant (unexpressed) genes
     if a.classes:

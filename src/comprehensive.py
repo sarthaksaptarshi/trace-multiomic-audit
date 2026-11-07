@@ -32,7 +32,7 @@ def build_W(rng, amp):
             W[base:base+MOD, col%K]+=rng.uniform(0.7,1.3)*amp; base+=MOD; col+=1
     return W
 
-def deployment(rng, knobs=None, leaky=False):
+def deployment(rng, knobs=None):
     # independent mechanisms
     k = knobs or {}
     batch = k.get("batch", rng.uniform(0,1))
@@ -93,33 +93,36 @@ def deployment(rng, knobs=None, leaky=False):
     ens=np.stack([LogisticRegression(max_iter=200,C=0.5).fit(Xtr[(i:=sboot())],ytr[i]).predict_proba(Xev) for _ in range(5)]).var(0).mean()
     Xd=np.vstack([Xtr,Xev]); yd=np.r_[np.zeros(260),np.ones(len(Xev))]
     dom=np.mean([roc_auc_score(yd[te],LogisticRegression(max_iter=200).fit(Xd[tr],yd[tr]).predict_proba(Xd[te])[:,1]) for tr,te in StratifiedKFold(3,shuffle=True,random_state=0).split(Xd,yd)])
-    # leaky pipeline leakage score (select on REAL labels outside CV, true-label CV acc gap vs honest)
-    def cvacc_real(outside):
-        acc=[]
-        for tr,te in StratifiedKFold(3,shuffle=True,random_state=2).split(Xtr,ytr):
-            fe=np.argsort(f_classif(Xtr,ytr)[0])[-25:] if outside else np.argsort(f_classif(Xtr[tr],ytr[tr])[0])[-25:]
-            acc.append((LogisticRegression(max_iter=150).fit(Xtr[tr][:,fe],ytr[tr]).predict(Xtr[te][:,fe])==ytr[te]).mean())
-        return np.mean(acc)
     return dict(f1=f1_ext,dECE=dECE,direct=direct,conf_shift=conf_shift,ent_shift=ent_shift,
                 qbar=qbar,stab=stab,leak=leak,conf=conf,entropy=entropy,ens=ens,dom=dom,
                 yev=yev, pev=pev)
 
+RETRIES={"calls":0,"redrawn":0,"errors":{}}
 def safe(rng,**kw):
+    """Draw a deployment; if a draw fails (e.g. degenerate class split), redraw.
+    Redraws are counted and reported (retry_report) so any selection is disclosed."""
+    RETRIES["calls"]+=1
     for _ in range(6):
         try: return deployment(rng,**kw)
-        except Exception: pass
-    raise RuntimeError
+        except Exception as e:
+            RETRIES["redrawn"]+=1; k=type(e).__name__; RETRIES["errors"][k]=RETRIES["errors"].get(k,0)+1
+    raise RuntimeError("deployment failed 6 times in a row")
+def retry_report():
+    print("  [disclosure] deployments requested %d, failed draws redrawn %d %s"
+          %(RETRIES["calls"],RETRIES["redrawn"],RETRIES["errors"] or ""))
 if __name__=='__main__':
+    import os; os.makedirs("figures",exist_ok=True)
     M=180
     rows=[safe(RNG) for _ in range(M)]
     A={k:np.array([r[k] for r in rows],dtype=object) if k in ("yev","pev") else np.array([r[k] for r in rows]) for k in rows[0]}
     def ci(fn,*xs,B=1500):
+        """point estimate on the full sample + percentile bootstrap 95% CI"""
         n=len(xs[0]); s=[]
         for _ in range(B):
             i=RNG.integers(0,n,n)
             try:s.append(fn(*[x[i] for x in xs]))
-            except:pass
-        return np.nanmean(s),np.nanpercentile(s,2.5),np.nanpercentile(s,97.5)
+            except Exception:pass
+        return fn(*xs),np.nanpercentile(s,2.5),np.nanpercentile(s,97.5)
 
     print("NON-CIRCULAR PATIENT-LEVEL VALIDATION  (M=%d deployments)"%M)
     print("external macro-F1: min %.2f median %.2f max %.2f"%(A["f1"].min(),np.median(A["f1"]),A["f1"].max()))
@@ -141,12 +144,15 @@ if __name__=='__main__':
                ("domain classifier",-A["dom"],"free"),
                ("TRACE label-dependent",Tlab,"LABELS"),
                ("TRACE label-free",Tfree,"free")]
+    out={}
     for nm,sc,acc in detectors:
         r=ci(lambda a,b:pearsonr(a,b)[0],sc[ez],A["f1"][ez])
         au=ci(lambda y,s:roc_auc_score(y,-s),fail[ez],sc[ez])
         ap=ci(lambda y,s:average_precision_score(y,-s),fail[ez],sc[ez])
         print("  %-38s r=%.2f[%.2f,%.2f]  AUROC=%.2f[%.2f,%.2f]  AUPRC=%.2f  (%s)"%(nm,*r,*au,ap[0],acc))
+        out[nm]=dict(r=r,auroc=au,auprc=ap,access=acc)
+    import results_io; results_io.save("comprehensive",out)
     print("  base-rate AUPRC = %.2f"%fail[ez].mean())
     np.savez("figures/comp.npz", f1=A["f1"], Tfree=Tfree, Tlab=Tlab, direct=A["direct"],
              dom=A["dom"], fail=fail, dECE=A["dECE"], ent_shift=A["ent_shift"])
-    print("saved comp.npz")
+    print("saved comp.npz"); retry_report()

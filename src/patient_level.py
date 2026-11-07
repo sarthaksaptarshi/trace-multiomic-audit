@@ -70,27 +70,32 @@ def gen(rng, sig, shift, batch, nch):
     return dict(f1=f1,dECE=dECE,conf_shift=conf_shift,ent_shift=ent_shift,js=js,
                 conf=pex.max(1).mean(),entropy=ent(pex),ens=ens,dom=dom,qbar=qbar,stab=stab,leak=leak)
 
+REDRAWN=[0]
 def gen_safe(rng,**kw):
+    """redraw a failed deployment (counted and reported at the end)"""
     for _ in range(8):
         try: return gen(rng,**kw)
-        except Exception: continue
+        except Exception: REDRAWN[0]+=1
     raise RuntimeError('gen failed')
 def pool(M,**kw):
     rows=[gen_safe(RNG,**kw) for _ in range(M)]; return {k:np.array([r[k] for r in rows]) for k in rows[0]}
 def ci(fn,*xs,B=2000):
+    """point estimate on the full sample + percentile bootstrap 95% CI"""
     n=len(xs[0]); s=[]
     for _ in range(B):
         i=RNG.integers(0,n,n)
         try: s.append(fn(*[x[i] for x in xs]))
-        except: pass
-    return (np.nanmean(s),np.nanpercentile(s,2.5),np.nanpercentile(s,97.5))
+        except Exception: pass
+    return (fn(*xs),np.nanpercentile(s,2.5),np.nanpercentile(s,97.5))
 
 print("=== ITEM 1: label-free calibration surrogate vs TRUE drift (calibration-varying regime) ===")
 A=pool(160, sig=(0.7,1.1), shift=1.5, batch=1.1, nch=(50,100,160))
 print("  accuracy stable: external macro-F1 median %.2f (IQR %.2f-%.2f)"%(np.median(A["f1"]),np.percentile(A["f1"],25),np.percentile(A["f1"],75)))
+SAVE={"item1":{},"item2":{}}
 for nm,k in [("confidence shift","conf_shift"),("entropy shift","ent_shift"),("Jensen-Shannon","js")]:
     r=ci(lambda a,b:pearsonr(a,b)[0],A[k],A["dECE"]); rs=ci(lambda a,b:spearmanr(a,b)[0],A[k],A["dECE"])
     print("  %-20s Pearson %.2f [%.2f,%.2f]  Spearman %.2f [%.2f,%.2f]"%(nm,*r,*rs))
+    SAVE["item1"][k]=dict(pearson=r,spearman=rs)
 
 print("\n=== ITEM 2: failure detection vs baselines (accuracy-failing regime) ===")
 B2=pool(220, sig=(0.35,0.75), shift=1.8, batch=1.4, nch=(40,80,160))
@@ -108,7 +113,10 @@ print("  %-32s %16s %16s"%("detector","AUROC","AUPRC"))
 for nm,sc in cands.items():
     au=ci(lambda y,s:roc_auc_score(y,s),fail[ez],sc[ez]); ap=ci(lambda y,s:average_precision_score(y,s),fail[ez],sc[ez])
     print("  %-32s %.2f [%.2f,%.2f]  %.2f [%.2f,%.2f]"%(nm,*au,*ap))
+    SAVE["item2"][nm]=dict(auroc=au,auprc=ap)
 print("  base rate (AUPRC chance) %.2f"%fail[ez].mean())
+import os, results_io; os.makedirs("figures",exist_ok=True); results_io.save("patient_level",SAVE)
+print("  [disclosure] failed deployment draws redrawn: %d"%REDRAWN[0])
 np.savez("figures/patient_data.npz", dECE=A["dECE"], conf_shift=A["conf_shift"], ent_shift=A["ent_shift"],
          f1=B2["f1"], Tfree=Tfree, fail=fail, dom=B2["dom"], entropy=B2["entropy"])
 print("saved.")

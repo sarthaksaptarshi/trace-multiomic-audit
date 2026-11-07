@@ -2,7 +2,18 @@
 """
 Figure generator for the TRACE audit-framework manuscript.
 Produces 12 figures as 300-dpi PNG and vector PDF.
-All numbers are consistent with the OMICS-SIM results summary.
+
+PROVENANCE OF THE PLOTTED VALUES -- read before using any of these in a paper:
+  * Diagrams (no data):                       fig1, fig2
+  * Simulated, generated here from a seed:    fig8 (generate_configs; circular hazard model)
+  * SCHEMATIC -- curves/distributions drawn from hand-chosen parameters or closed-form
+    formulas, NOT produced by any analysis:  fig5, fig6, fig9, fig11
+    (fig11 also conflicts with src/extras.py, which finds no within-deployment deferral gain)
+  * Hard-coded values with NO generating code in this repository:
+                                              fig3, fig4, fig7, fig10, fig12
+Schematic figures are stamped "Schematic - illustrative values" by default
+(STAMP_SCHEMATIC below). Results figures belong in make_*_fig.py, which read
+results/*.json written by the analysis scripts.
 """
 import os
 import numpy as np
@@ -51,7 +62,17 @@ C_GRAY  = "#6F6F6F"
 COL1 = 3.45   # single-column width (in)
 COL2 = 7.10   # double-column width (in)
 
+STAMP_SCHEMATIC = True
+SCHEMATIC = {"fig5_leakage", "fig6_calibration", "fig9_shortcut_curve", "fig11_deferral"}
+NO_SOURCE = {"fig3_modalities", "fig4_shortcut_repair", "fig7_stability",
+             "fig10_smallsample", "fig12_casestudy"}
+
 def save(fig, name):
+    if STAMP_SCHEMATIC and name in SCHEMATIC:
+        fig.text(0.99, 0.01, "Schematic - illustrative values, not results",
+                 ha="right", va="bottom", fontsize=5.5, color=C_GRAY, style="italic")
+    if name in NO_SOURCE:
+        print(f"WARNING: {name} plots hard-coded values with no generating code in this repo")
     fig.savefig(os.path.join(OUT, name + ".png"), dpi=300)
     fig.savefig(os.path.join(OUT, name + ".pdf"))
     plt.close(fig)
@@ -61,7 +82,7 @@ rng = np.random.default_rng(7)
 
 # ----------------------------------------------------------------------------
 # Shared, reproducible generator for the 48 model configurations.
-# Used by Fig. 9 and by analysis_stats.py so figure and tables agree exactly.
+# Used by Fig. 8 (circular hazard model; see stress_test.py for the analysed version).
 # ----------------------------------------------------------------------------
 def generate_configs(seed=11, n=48):
     r = np.random.default_rng(seed)

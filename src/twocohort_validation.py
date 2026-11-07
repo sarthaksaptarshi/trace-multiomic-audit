@@ -12,6 +12,11 @@ Cross-platform handling: gene IDs are matched after stripping Ensembl version
 suffixes and upper-casing symbols (optionally via --gene-map1/--gene-map2); each
 cohort is then put on a common footing by per-gene normalisation WITHIN that cohort
 (z-score or rank), which removes the platform offset/scale without using labels.
+DISCLOSURE: this normalisation uses all samples of a cohort, including the samples of
+a held-out site/cohort (label-free, transductive). Report it in the methods.
+
+TCGA samples are restricted to primary tumours (sample codes 01/03), one per patient;
+normal-tissue samples otherwise inherit the patient's histology label.
 
 Usage (names/columns confirmed in step 2):
   python twocohort_validation.py \
@@ -41,6 +46,22 @@ def norm_gene(g):
     return g.upper()
 def tss(bc):
     p=str(bc).split("-"); return p[1] if (str(bc).upper().startswith("TCGA-") and len(p)>1) else None
+def sample_code(bc):
+    """TCGA sample-type code ('01' primary tumour, '11' solid normal, ...); None if not a TCGA barcode."""
+    p=str(bc).split("-")
+    return p[3][:2] if (str(bc).upper().startswith("TCGA-") and len(p)>3) else None
+def tumour_only(ids):
+    """Keep primary tumours (01/03) and one sample per TCGA patient; non-TCGA IDs pass through.
+    Normal-tissue (11) and metastatic (06) samples inherit the patient's histology in the
+    clinical matrix, so they must be dropped or they enter the analysis mislabelled."""
+    out=[]; seen=set()
+    for s in sorted(ids):
+        sc=sample_code(s)
+        if sc is not None and sc not in ("01","03"): continue
+        pat="-".join(str(s).split("-")[:3]) if sc is not None else s
+        if pat in seen: continue
+        seen.add(pat); out.append(s)
+    return out
 def read_table(path):
     # skip leading comment lines (cBioPortal clinical files start with '#')
     sk=0
@@ -91,6 +112,8 @@ def build_cohort(expr,pheno,subcol,classes,name,site_col,id_col,gene_map):
     y=ph[subcol].astype(str)
     cls=[c.strip() for c in classes.split(";")]
     keep=[s for s in X.index if s in y.index and str(y.get(s)).strip() in cls]
+    n0=len(keep); keep=tumour_only(keep)
+    if n0!=len(keep): print(f"      {name}: dropped {n0-len(keep)} non-primary-tumour / duplicate-patient samples")
     X=X.loc[keep]; y=y.loc[keep].map({c:i for i,c in enumerate(cls)})
     if site_col and site_col in ph.columns:
         site=ph[site_col].astype(str).loc[keep].map(lambda v:f"{name}:{v}")
@@ -214,6 +237,6 @@ def main():
             xo=R[col]*s
             if xo.std()<1e-12: print(f"   {col:11s} constant"); continue
             print(f"   {col:11s} rho={spearmanr(xo,R['external_AUROC']).correlation:+.2f}")
-        print("\nNOTE: send me the two CSVs; I add 95% bootstrap CIs and interpret.")
+        print(f"\nBootstrap CIs and cohort-adjusted partial correlations: python src/realdata_stats.py --twocohort {a.out}")
 
 if __name__=="__main__": main()

@@ -51,9 +51,7 @@ def leak_gap(X,y,rng,outside):
     base=1.0/len(np.unique(y)); return np.mean(acc)-base
 RNG3=default_rng(1); gi=[]; go=[]
 for _ in range(30):
-    d=safe(RNG3)  # reuse generator to get a source cohort
-    # rebuild a small source cohort quickly from deployment internals is not exposed;
-    # instead synthesise a quick labelled set with signal
+    # a small labelled source cohort with class signal
     n=240; P=120; y=RNG3.integers(0,4,n); X=RNG3.standard_normal((n,P))+ (np.eye(4)[y]@RNG3.standard_normal((4,P)))*0.6
     gi.append(leak_gap(X,y,RNG3,False)); go.append(leak_gap(X,y,RNG3,True))
 gi=np.array(gi); go=np.array(go)
@@ -88,5 +86,9 @@ for _ in range(80):
     es.append(ent(pt)-ent(clf.predict_proba(Xs)))      # ~0 (same inputs)
     de.append(ece(pt,yt)-ece(clf.predict_proba(Xs),y))
 from scipy.stats import pearsonr
-print("  confident-error regime: mean entropy shift %.3f, mean true dECE %.3f, corr %.2f"%(np.mean(es),np.mean(de),pearsonr(es,de)[0]))
-print("  -> entropy shift ~0 while calibration drift is large: surrogate fails here (counterexample).")
+# NOTE: inputs are identical in source and target, so the entropy shift is exactly 0 BY
+# CONSTRUCTION (a deliberately degenerate case: label shift only). Correlation is undefined.
+print("  confident-error regime (label shift only, inputs unchanged; entropy shift = 0 by construction):")
+print("  mean entropy shift %.3f (max |.| %.1e), mean true dECE %.3f [min %.3f, max %.3f]"
+      %(np.mean(es),np.max(np.abs(es)),np.mean(de),np.min(de),np.max(de)))
+print("  -> a label-free surrogate cannot see pure label shift, while calibration drift is large (counterexample).")

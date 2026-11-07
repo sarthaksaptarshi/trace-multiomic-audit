@@ -1,63 +1,79 @@
-# Running the TRACE real-data validation on your laptop (TCGA via UCSC Xena)
+# Reproducing the TRACE real-data analyses
 
-All results you produce are yours; nothing here is pre-filled. Treat the first
-run as a pipeline test, then do the non-circular version (see Step 2).
+All real-data analyses use **open-access** data only; nothing is bundled in this
+repository (the matrices are large and governed by their sources' terms). Download
+the inputs yourself as below, then run the scripts in `src/`. These are research
+illustrations, **not** a clinical validation.
 
-## Step 1 — Environment (10 min)
+Environment: Python >= 3.10 with the packages in `requirements.txt`
+(`pip install -r requirements.txt`). The scripts read `.gz` files directly.
+
+---
+
+## 1. TCGA breast cancer, single cohort (leave-one-site-out)
+
+Data from UCSC Xena (https://xenabrowser.net/datapages/), GDC TCGA BRCA cohort:
+gene expression (STAR FPKM-UQ) and the clinical/phenotype matrix. The label is the
+pathology-assigned histology (`primary_diagnosis.diagnoses`), which is non-circular
+with expression features.
+
 ```
-# install Python 3.10+ first (python.org or miniconda), then:
-python -m venv trace-env
-# Windows:  trace-env\Scripts\activate     macOS/Linux:  source trace-env/bin/activate
-pip install numpy pandas scipy scikit-learn
-# unzip TRACE_code_release.zip; the script is src/xena_validation.py
+python src/xena_validation.py --expr TCGA-BRCA.star_fpkm-uq.tsv.gz \
+  --pheno TCGA-BRCA.clinical.tsv.gz --subtype-col "primary_diagnosis.diagnoses" \
+  --classes "Infiltrating duct carcinoma, NOS;Lobular carcinoma, NOS" \
+  --balanced --topk 500 --min-site 15 --audit 20 --out results.csv
 ```
 
-## Step 2 — Get the data from UCSC Xena (no login, open data)
-1. Open https://xenabrowser.net/datapages/ and choose a TCGA cohort
-   (e.g. "GDC TCGA Breast Cancer (BRCA)").
-2. From that cohort's page, click each dataset and use **Download**:
-   - a **gene expression** matrix (e.g. "HTSeq - FPKM" / "RSEM" / "pancan normalized"),
-   - optionally **copy number (gene-level, Gistic2)**,
-   - the **phenotype / clinical** matrix (has subtype + clinical columns).
-3. If files end in `.gz`, decompress (`gunzip file.gz`).
-4. Open the phenotype file and note the **exact subtype column name**
-   (e.g. `PAM50Call_RNAseq`, `Subtype`, or an IHC receptor column).
+## 2. TCGA + METABRIC, two cohorts (cross-cohort transfer + pooled sites)
 
-### Choose labels to AVOID circularity (important)
-- If label = **PAM50** (it is expression-derived), use **non-expression features**
-  (copy number and/or methylation) — pass `--cnv` and omit expression, or vice-versa.
-- Or use a **clinical label not derived from omics** (e.g. ER/PR/HER2 receptor
-  status for BRCA) with expression features. Either choice is non-circular.
-- Using expression features AND a PAM50 label is circular — only for a first
-  pipeline test, not for the real result.
+Add METABRIC (microarray expression + clinical) from cBioPortal
+(https://www.cbioportal.org/study/summary?id=brca_metabric). TCGA uses Ensembl gene
+IDs and METABRIC uses symbols, so first build a mapping (needs `mygene`):
 
-## Step 3 — Run
 ```
-python src/xena_validation.py \
-  --expr EXPR.tsv --pheno PHENO.tsv --subtype-col "PAM50Call_RNAseq" \
-  --topk 500 --min-site 15 --audit 20 --out results.csv
-# add  --cnv CNV.tsv  to include copy number
-# add  --site-col COLNAME  if the phenotype has an explicit tissue-source-site column
+python src/make_genemap.py --expr TCGA-BRCA.star_fpkm-uq.tsv.gz --out genemap.tsv
+python src/twocohort_validation.py \
+  --expr1 TCGA-BRCA.star_fpkm-uq.tsv.gz --pheno1 TCGA-BRCA.clinical.tsv.gz \
+  --subtype-col1 "primary_diagnosis.diagnoses" \
+  --classes1 "Infiltrating duct carcinoma, NOS;Lobular carcinoma, NOS" \
+  --expr2 data_mrna_illumina_microarray.txt --pheno2 data_clinical_patient.txt \
+  --subtype-col2 "HISTOLOGICAL_SUBTYPE" --classes2 "Ductal/NST;Lobular" \
+  --site-col2 "COHORT" --harmonize zscore --gene-map1 genemap.tsv \
+  --topk 500 --min-site 15 --audit 20 --out results_twocohort.csv
 ```
-The script does leave-one-tissue-source-site-out, prints per-site external macro-F1
-and each detector, writes `results.csv`, and prints Spearman correlations across sites.
 
-## Step 4 — Share back (paste here)
-- the printed summary (per-site lines + the Spearman block), or upload `results.csv`;
-- the cohort, which features (expression / CNV / methylation), the subtype label,
-  the number of sites, and samples per site.
-Then I will add confidence intervals, interpret it honestly, make the figure, and
-fold it into the manuscript (or tell you plainly if it does not hold up).
+## 3. TCGA glioma DNA methylation (cross-plate batches)
 
-## Caveats to keep in mind
-- Tissue-source site is NOT a sequencing centre or batch (GDC/Xena are harmonised),
-  so this tests population + residual technical shift — weaker than an independent cohort.
-- Few sites = low statistical power; results are exploratory.
-- If sample IDs in the two files don't overlap (0 samples), check barcode format
-  (e.g. `TCGA-A2-A04P-01` vs `-01A`); trim to the first 4 blocks if needed.
-- Expression matrices can be large (hundreds of MB); ensure disk space.
+Data from UCSC Xena, TCGA GBMLGG cohort: Methylation450k beta matrix and the
+clinical matrix (histology). Build a 4-class histology label from the clinical
+matrix, and a real sequencing-**plate** batch map from the GDC aliquot barcodes
+(the plate is the 6th barcode field); fetch the aliquot barcodes via the GDC files
+API or the project Biospecimen download for TCGA-GBM and TCGA-LGG. Then:
 
-## Troubleshooting
-- "subtype-col not in pheno": the script prints available columns — copy the exact name.
-- "Need >=3 sites": lower `--min-site`, or pick a larger cohort.
-- Slow: lower `--topk` (e.g. 300); the script already selects top-k genes.
+```
+python src/methyl_batch_validation.py \
+  --beta TCGA.GBMLGG.sampleMap_HumanMethylation450.gz --pheno glioma_label4.tsv \
+  --subtype-col label --classes "GBM;Astrocytoma;Oligodendroglioma;Oligoastrocytoma" \
+  --batch plate_map_glioma.csv --topk 2000 --maxprobes 20000 \
+  --min-plate 15 --group-min 25 --out glioma_pilot4.csv
+```
+
+The CSV outputs of these three analyses are in `real_data/`.
+
+---
+
+## Notes and caveats
+
+- Use a non-circular label: pathology histology or IHC receptor status with omic
+  features, never a label derived from the same assay used as features.
+- The TCGA sample barcodes in Xena matrices are sample-level (`TCGA-XX-XXXX-01`);
+  the genuine sequencing **plate** is only in the full aliquot barcode, obtained
+  from the GDC (used in analysis 3).
+- Methylation beta matrices contain missing values; `methyl_batch_validation.py`
+  mean-imputes on the training split before standardising.
+- TCGA samples are restricted to primary tumours (sample codes 01/03), one per patient.
+  Normal-tissue samples otherwise inherit the patient's histology label.
+- With few sites/batches these analyses are exploratory. Bootstrap confidence intervals
+  and cohort-adjusted partial correlations come from `src/realdata_stats.py`.
+- `glioma_label4.tsv` and `plate_map_glioma.csv` are built by hand as described in step 3;
+  record the exact clinical columns and GDC query you used so others can rebuild them.
