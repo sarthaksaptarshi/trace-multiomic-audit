@@ -104,8 +104,10 @@ sp=len(f1)//2; dz=slice(0,sp); ez=slice(sp,len(f1))
 BAR=float(np.median(f1[dz]))                        # prespecified on DESIGN split
 fail=(f1<BAR).astype(int); print("  bar (design-split median) %.2f ; eval prevalence %.2f"%(BAR,fail[ez].mean()))
 def mm(x,ref): lo,hi=ref.min(),ref.max(); return np.clip((x-lo)/(hi-lo+1e-9),0,1)
-calib_free=-np.abs(B2["conf_shift"])
-Tfree=np.mean([B2["qbar"],B2["stab"],1-mm(B2["leak"],B2["leak"][dz]),mm(calib_free,calib_free[dz])],axis=0)
+# label-free calibration term = |entropy shift| (the surrogate validated in ITEM 1 and used
+# in comprehensive.py); components scaled on the design split exactly as there
+Tfree=np.mean([mm(B2["qbar"],B2["qbar"][dz]),B2["stab"],1-mm(B2["leak"],B2["leak"][dz]),
+               1-mm(np.abs(B2["ent_shift"]),np.abs(B2["ent_shift"])[dz])],axis=0)
 cands={"predictive confidence":-B2["conf"],"predictive entropy":B2["entropy"],
        "ensemble disagreement":B2["ens"],"domain classifier":B2["dom"],
        "TRACE trust score (label-free)":-Tfree}

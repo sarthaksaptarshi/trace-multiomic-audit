@@ -79,6 +79,10 @@ source venv/bin/activate        # Windows: venv\Scripts\activate.bat
 pip install -r requirements.txt   # numpy, pandas, scipy, scikit-learn, matplotlib  (Python >= 3.10)
 ```
 
+The committed `results/` and `real_data/` outputs were produced with numpy 2.5.4, scipy 1.18.1,
+scikit-learn 1.9.1, pandas 3.1.1 and matplotlib 3.11.2. With these versions every simulation
+script reproduces its `results/*.json` byte-for-byte; other versions can differ in the last digit.
+
 ---
 
 ## Reproducing the simulation results
@@ -162,11 +166,16 @@ python src/realdata_stats.py --single real_data/results_TCGA_BRCA_fixed.csv \
 python src/make_cohort_figs.py     # figures/fig_twocohort.*, figures/fig_glioma.*
 ```
 
-The `real_data/` CSVs are the outputs of these commands after two fixes: (1) TCGA samples
-are restricted to primary tumours, one per patient (an earlier two-cohort run included
-normal-tissue samples carrying the patient's carcinoma label, which inflated the raw
-detector correlations); (2) the glioma AUROC is computed over the classes present on each
-plate.
+The `real_data/` CSVs are the outputs of these commands after these fixes: (1) TCGA samples
+are restricted to primary tumours, one per patient, in all three analyses (an earlier
+two-cohort run included normal-tissue samples carrying the patient's carcinoma label, which
+inflated the raw detector correlations; the glioma run included recurrent and normal samples
+and let one patient appear in both a training and the held-out batch); (2) the glioma AUROC is
+computed over the classes present on each plate; (3) the real-data provenance probe averages
+over the top-ranked selected features (an earlier version used the lowest-ranked ones). With
+duplicate patients removed, the glioma analysis has 12 evaluable plate-batches (was 14).
+Glioblastoma is nearly absent from the evaluable held-out batches, so in practice that task is
+close to three-class at evaluation.
 
 ---
 

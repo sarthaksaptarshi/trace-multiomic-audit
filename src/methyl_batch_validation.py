@@ -35,6 +35,23 @@ from sklearn.feature_selection import f_classif
 from sklearn.metrics import f1_score, roc_auc_score
 
 def is_barcode(s): return isinstance(s,str) and s.upper().startswith("TCGA-")
+def sample_code(bc):
+    """TCGA sample-type code ('01' primary, '02' recurrent, '11' normal, ...); None if not a TCGA barcode."""
+    p=str(bc).split("-")
+    return p[3][:2] if (is_barcode(str(bc)) and len(p)>3) else None
+def tumour_only(ids):
+    """Keep primary tumours (01/03) and one sample per TCGA patient; non-TCGA IDs pass through.
+    Recurrent (02) and normal (11) samples inherit the patient's histology label, and a
+    patient's second sample can land on a different plate, putting the same patient in
+    both the training and the held-out batch."""
+    out=[]; seen=set()
+    for s in sorted(ids):
+        sc=sample_code(s)
+        if sc is not None and sc not in ("01","03"): continue
+        pat="-".join(str(s).split("-")[:3]) if sc is not None else s
+        if pat in seen: continue
+        seen.add(pat); out.append(s)
+    return out
 def plate_from_barcode(bc):
     p=str(bc).split("-"); return p[5] if len(p)>=6 else None   # plate = 6th field of aliquot barcode
 def present_class_auroc(y,p):
@@ -80,6 +97,8 @@ def main():
     print("[2/4] methylation beta (can take a minute, large) ..."); X=load_beta(a.beta,a.maxprobes)
     pl=pd.Series({s:(plate.get(s) if plate else plate_from_barcode(s)) for s in X.index})
     keep=[s for s in X.index if s in y.index and str(y.get(s)).strip() in cls and pl.get(s) not in (None,"nan","None")]
+    n0=len(keep); keep=tumour_only(keep)
+    if n0!=len(keep): print(f"      dropped {n0-len(keep)} non-primary-tumour / duplicate-patient samples")
     X=X.loc[keep]; y=y.loc[keep].map({c:i for i,c in enumerate(cls)}).values; pl=pl.loc[keep].astype(str)
     if a.group_min>0:
         vc=pl.value_counts()
@@ -113,7 +132,7 @@ def main():
         conf=float(pe.max(1).mean()); ent=float((-(pe*np.log(pe+1e-9)).sum(1)).mean())
         # REAL batch provenance: within-subtype variance ACROSS TRAINING PLATES / total (low => batch-driven feature)
         bvals=[]
-        for j in sel[:300]:
+        for j in sel[-300:]:                      # sel is ascending by F: take the 300 top-ranked probes
             w=[]
             for c in range(len(cls)):
                 xi=Z(Xtr)[ytr==c,j]; si=str_pl[ytr==c]

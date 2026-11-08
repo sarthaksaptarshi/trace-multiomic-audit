@@ -141,7 +141,7 @@ def main():
         sb=set(topk_feats(Z(Xtr)[len(Xtr)//2:],ytr[len(Xtr)//2:],a.topk))
         stab=len(sa&sb)/len(sa|sb)
         src_site=site.values[tr_idx][p[:cut]]; bvals=[]
-        for j in sel[:200]:
+        for j in sel[-200:]:                  # sel is ascending by F: take the 200 top-ranked genes
             within=[]
             for c in range(len(classes)):
                 xi=Z(Xtr)[ytr==c,j]; si=src_site[ytr==c]
