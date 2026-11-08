@@ -12,7 +12,7 @@ authors:
     family-names: Chanda
     affiliation: "Meghnad Saha Institute of Technology, Kolkata 700150, India"
     website: "https://sites.google.com/msit.edu.in/drmanashchanda/home"
-version: "1.1.0"
+version: "1.2.0"
 date-released: "2026-11-07"
 license: MIT
 doi: "10.5281/zenodo.23873596"
